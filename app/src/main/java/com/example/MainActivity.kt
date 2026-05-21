@@ -173,12 +173,10 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
                 )
         )
 
-        // Main Animated Content switching between Minimalist and Complicated mode
-        AnimatedContent(
+        // Main Animated Content switching between Minimalist and Complicated mode using safe Crossfade
+        Crossfade(
             targetState = isMinimalMode,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(300))
-            },
+            animationSpec = tween(400),
             label = "ViewModeTransition"
         ) { minimal ->
             if (minimal) {
@@ -667,7 +665,7 @@ fun ComplicatedCatalogView(
     val scrollState = rememberScrollState()
     
     // Top featured active spotlight banner (The "Hero" item)
-    val featuredApp = allApps.firstOrNull { it.isFavorite } ?: allApps.firstOrNull()
+    val featuredApp = allApps.firstOrNull { it.isFavorite }
 
     Column(
         modifier = Modifier

@@ -46,7 +46,7 @@ class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
                         category = "Video",
                         description = "The premier global video sharing and live broadcast stream platform designed fully for television.",
                         rating = 4.8f,
-                        isFavorite = true,
+                        isFavorite = false,
                         clicks = 50
                     ),
                     TvApp(
@@ -55,7 +55,7 @@ class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
                         category = "Video",
                         description = "Nostalgic cinema classics, award-winning original shows, blockbusters, and binge-worthy documentaries.",
                         rating = 4.7f,
-                        isFavorite = true,
+                        isFavorite = false,
                         clicks = 42
                     ),
                     TvApp(
@@ -64,7 +64,7 @@ class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
                         category = "Audio",
                         description = "Unleash millions of background songs, personalized curation playlists, and global podcast content.",
                         rating = 4.6f,
-                        isFavorite = true,
+                        isFavorite = false,
                         clicks = 30
                     ),
                     TvApp(
