@@ -814,31 +814,27 @@ fun ComplicatedCatalogView(
         ) {
             categories.forEach { cat ->
                 val isSelected = selectedCategory == cat
-                
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onCategorySelect(cat) },
-                    label = { 
-                        Text(
-                            text = cat, 
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99)
-                        ) 
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = Color(0xFF2B2930),
-                        selectedContainerColor = Color(0xFF381E72),
-                        labelColor = Color(0xFF938F99)
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = Color(0xFF49454F),
-                        selectedBorderColor = Color.Transparent,
-                        selectedBorderWidth = 0.dp,
-                        enabled = true,
-                        selected = isSelected
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            if (isSelected) Color(0xFF381E72) else Color(0xFF2B2930)
+                        )
+                        .border(
+                            1.dp,
+                            if (isSelected) Color(0xFFD0BCFF).copy(alpha = 0.3f) else Color(0xFF49454F),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable { onCategorySelect(cat) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = cat, 
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) Color(0xFFD0BCFF) else Color(0xFF938F99)
+                    )
+                }
             }
         }
 
@@ -922,10 +918,13 @@ fun ComplicatedCatalogView(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            LazyRow(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(customApps) { app ->
+                customApps.forEach { app ->
                     Card(
                         modifier = Modifier
                             .width(160.dp)
