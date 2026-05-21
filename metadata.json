@@ -1,0 +1,6 @@
+{
+  "name": "Minimalist TV",
+  "description": "A elegant, commercial-free, minimalistic Google TV dashboard and custom launcher featuring a text-only zen single-app view and an advanced layout model.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
