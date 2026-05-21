@@ -81,13 +81,22 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
     // Proactively check if Focus Mode is set as the default device launcher
     LaunchedEffect(Unit) {
         while (true) {
-            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-                addCategory(android.content.Intent.CATEGORY_HOME)
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                    addCategory(android.content.Intent.CATEGORY_HOME)
+                }
+                val resolveInfo = context.packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                isDefaultLauncher = (resolveInfo?.activityInfo?.packageName == context.packageName)
+            } catch (e: Exception) {
+                isDefaultLauncher = false
             }
-            val resolveInfo = context.packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-            isDefaultLauncher = (resolveInfo?.activityInfo?.packageName == context.packageName)
             delay(2000) // Poll every 2 seconds to instantly refresh when user sets it and returns
         }
+    }
+
+    // Automatically retrieve and import physical application packages installed on the device
+    LaunchedEffect(Unit) {
+        viewModel.scanAndImportInstalledApps(context)
     }
 
     val onSetDefaultLauncher = {

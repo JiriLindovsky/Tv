@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
@@ -155,7 +156,7 @@ class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
             repository.incrementClicks(app.id)
             _launchEvent.emit(app)
             
-            // Try actual device package launch, otherwise show toast simulation message
+            // Try actual device package launch, otherwise redirect to Google Play Store to install it!
             try {
                 val intent: Intent? = context.packageManager.getLaunchIntentForPackage(app.packageName)
                 if (intent != null) {
@@ -163,16 +164,103 @@ class TvAppViewModel(private val repository: TvAppRepository) : ViewModel() {
                 } else {
                     Toast.makeText(
                         context,
-                        "Starting '${app.name}' (Simulated Launch - app package not installed)",
-                        Toast.LENGTH_SHORT
+                        "App '${app.name}' is not installed. Opening Google Play Store to download...",
+                        Toast.LENGTH_LONG
                     ).show()
+                    
+                    try {
+                        val playStoreIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=${app.packageName}")).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(playStoreIntent)
+                    } catch (e: Exception) {
+                        val playStoreWebIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=${app.packageName}")).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(playStoreWebIntent)
+                    }
                 }
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
-                    "Starting '${app.name}' (Simulated Mode - ${e.localizedMessage})",
-                    Toast.LENGTH_SHORT
+                    "Failed to launch or open '${app.name}': ${e.localizedMessage}",
+                    Toast.LENGTH_LONG
                 ).show()
+            }
+        }
+    }
+
+    fun scanAndImportInstalledApps(context: Context) {
+        viewModelScope.launch {
+            try {
+                val pm = context.packageManager ?: return@launch
+                
+                // Query standard launcher apps
+                val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+                val list = try {
+                    pm.queryIntentActivities(mainIntent, 0) ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                // Query Android TV Leanback launcher apps
+                val leanbackIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                    addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+                }
+                val tvList = try {
+                    pm.queryIntentActivities(leanbackIntent, 0) ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                val allResolved = (list + tvList)
+                    .filter { it?.activityInfo != null }
+                    .distinctBy { it.activityInfo.packageName }
+                
+                // Fetch existing packages currently in database
+                val currentApps = allApps.first()
+                val existingPkgs = currentApps.map { it.packageName }.toSet()
+                
+                val appsToInsert = mutableListOf<TvApp>()
+                
+                for (resolveInfo in allResolved) {
+                    val pkgName = resolveInfo.activityInfo?.packageName ?: continue
+                    // Skip ourselves
+                    if (pkgName == context.packageName) continue
+                    
+                    if (!existingPkgs.contains(pkgName)) {
+                        val label = resolveInfo.loadLabel(pm).toString()
+                        
+                        // Categorize app based on package/label keywords
+                        val cat = when {
+                            pkgName.contains("video", ignoreCase = true) || pkgName.contains("movie", ignoreCase = true) || pkgName.contains("tv", ignoreCase = true) || pkgName.contains("netflix", ignoreCase = true) || pkgName.contains("disney", ignoreCase = true) || pkgName.contains("youtube", ignoreCase = true) || pkgName.contains("hulu", ignoreCase = true) || pkgName.contains("hbo", ignoreCase = true) || label.contains("TV", ignoreCase = true) || label.contains("Stream", ignoreCase = true) || label.contains("Video", ignoreCase = true) -> "Video"
+                            
+                            pkgName.contains("music", ignoreCase = true) || pkgName.contains("audio", ignoreCase = true) || pkgName.contains("sound", ignoreCase = true) || pkgName.contains("spotify", ignoreCase = true) || pkgName.contains("radio", ignoreCase = true) || label.contains("Music", ignoreCase = true) || label.contains("Radio", ignoreCase = true) || label.contains("Audio", ignoreCase = true) -> "Audio"
+                            
+                            pkgName.contains("game", ignoreCase = true) || pkgName.contains("arcade", ignoreCase = true) || pkgName.contains("retroarc", ignoreCase = true) || pkgName.contains("play", ignoreCase = true) || label.contains("Game", ignoreCase = true) || label.contains("Play", ignoreCase = true) -> "Games"
+                            
+                            else -> "Utility"
+                        }
+                        
+                        appsToInsert.add(
+                            TvApp(
+                                name = label,
+                                packageName = pkgName,
+                                category = cat,
+                                description = "Installed system application shortcut.",
+                                isCustom = true
+                            )
+                        )
+                    }
+                }
+                
+                if (appsToInsert.isNotEmpty()) {
+                    repository.insertAll(appsToInsert)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
