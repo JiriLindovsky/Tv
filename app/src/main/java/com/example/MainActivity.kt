@@ -76,6 +76,40 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
     val selectedAppDetail by viewModel.selectedAppDetail.collectAsState()
     
     var launchingApp by remember { mutableStateOf<TvApp?>(null) }
+    var isDefaultLauncher by remember { mutableStateOf(false) }
+
+    // Proactively check if Focus Mode is set as the default device launcher
+    LaunchedEffect(Unit) {
+        while (true) {
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_HOME)
+            }
+            val resolveInfo = context.packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            isDefaultLauncher = (resolveInfo?.activityInfo?.packageName == context.packageName)
+            delay(2000) // Poll every 2 seconds to instantly refresh when user sets it and returns
+        }
+    }
+
+    val onSetDefaultLauncher = {
+        try {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                    addCategory(android.content.Intent.CATEGORY_HOME)
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                Toast.makeText(
+                    context,
+                    "Open settings to choose Focus Mode as your default launcher of this device.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     
     // Listen for launcher event to trigger visual simulator overlays
     LaunchedEffect(key1 = true) {
@@ -149,7 +183,9 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
                     onSwitchToComplicated = { viewModel.isMinimalMode.value = false },
                     onOpenAddDialog = { viewModel.showAddDialog.value = true },
                     totalAppsCount = allAppsRaw.size,
-                    currentIndex = selectedAppIndex
+                    currentIndex = selectedAppIndex,
+                    isDefaultLauncher = isDefaultLauncher,
+                    onSetDefaultLauncher = onSetDefaultLauncher
                 )
             } else {
                 // VIEW 2: Complicated Catalog Hub containing rich tabs, bookmarks, details & search
@@ -165,7 +201,9 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
                     onToggleFavorite = { viewModel.toggleFavorite(it) },
                     onSwitchToMinimal = { viewModel.isMinimalMode.value = true },
                     onOpenAddDialog = { viewModel.showAddDialog.value = true },
-                    onDeleteApp = { viewModel.deleteApp(it) }
+                    onDeleteApp = { viewModel.deleteApp(it) },
+                    isDefaultLauncher = isDefaultLauncher,
+                    onSetDefaultLauncher = onSetDefaultLauncher
                 )
             }
         }
@@ -226,7 +264,9 @@ fun MinimalistTextualView(
     onSwitchToComplicated: () -> Unit,
     onOpenAddDialog: () -> Unit,
     totalAppsCount: Int,
-    currentIndex: Int
+    currentIndex: Int,
+    isDefaultLauncher: Boolean,
+    onSetDefaultLauncher: () -> Unit
 ) {
     if (app == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -303,23 +343,58 @@ fun MinimalistTextualView(
                 }
             }
 
-            // Elegant Quick Toggle
-            TextButton(
-                onClick = onSwitchToComplicated,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp))
-                    .testTag("switch_to_complicated_view"),
-                colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+            // Elegant Actions Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.List,
-                    contentDescription = "Complicated View",
-                    tint = Color(0xFFE6E1E5),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Complicated View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                // Quick setting configuration option to make Focus Mode Default Launcher
+                TextButton(
+                    onClick = onSetDefaultLauncher,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            if (isDefaultLauncher) Color(0xFF49454F) else Color(0xFFD0BCFF).copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = if (isDefaultLauncher) Color(0xFF2B2930) else Color(0xFF381E72).copy(alpha = 0.3f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (isDefaultLauncher) Icons.Default.CheckCircle else Icons.Default.Home,
+                        contentDescription = "Device home launcher setting status",
+                        tint = if (isDefaultLauncher) Color(0xFF4AF288) else Color(0xFFD0BCFF),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isDefaultLauncher) "Default Home" else "Set Default Home",
+                        color = if (isDefaultLauncher) Color(0xFFE6E1E5) else Color(0xFFD0BCFF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Elegant Quick Toggle
+                TextButton(
+                    onClick = onSwitchToComplicated,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp))
+                        .testTag("switch_to_complicated_view"),
+                    colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.List,
+                        contentDescription = "Complicated View",
+                        tint = Color(0xFFE6E1E5),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Complicated View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
 
@@ -576,7 +651,9 @@ fun ComplicatedCatalogView(
     onToggleFavorite: (TvApp) -> Unit,
     onSwitchToMinimal: () -> Unit,
     onOpenAddDialog: () -> Unit,
-    onDeleteApp: (TvApp) -> Unit
+    onDeleteApp: (TvApp) -> Unit,
+    isDefaultLauncher: Boolean,
+    onSetDefaultLauncher: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     
@@ -613,23 +690,58 @@ fun ComplicatedCatalogView(
                 )
             }
             
-            // Switch back to text focus view with Elegant Dark formatting
-            TextButton(
-                onClick = onSwitchToMinimal,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp))
-                    .testTag("switch_to_minimal_view"),
-                colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+            // Elegant Settings & Switch Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Minimal Mode",
-                    tint = Color(0xFFE6E1E5),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Minimal Textual View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                // Set Default Launcher setting launcher shortcut
+                TextButton(
+                    onClick = onSetDefaultLauncher,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            if (isDefaultLauncher) Color(0xFF49454F) else Color(0xFFD0BCFF).copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = if (isDefaultLauncher) Color(0xFF2B2930) else Color(0xFF381E72).copy(alpha = 0.3f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (isDefaultLauncher) Icons.Default.CheckCircle else Icons.Default.Home,
+                        contentDescription = "Device home setting selector status",
+                        tint = if (isDefaultLauncher) Color(0xFF4AF288) else Color(0xFFD0BCFF),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isDefaultLauncher) "Default Home" else "Set Default Home",
+                        color = if (isDefaultLauncher) Color(0xFFE6E1E5) else Color(0xFFD0BCFF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Switch back to text focus view with Elegant Dark formatting
+                TextButton(
+                    onClick = onSwitchToMinimal,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp))
+                        .testTag("switch_to_minimal_view"),
+                    colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Minimal Mode",
+                        tint = Color(0xFFE6E1E5),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Minimal Textual View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
 
