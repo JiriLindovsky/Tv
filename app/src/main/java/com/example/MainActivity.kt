@@ -94,11 +94,6 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
         }
     }
 
-    // Automatically retrieve and import physical application packages installed on the device
-    LaunchedEffect(Unit) {
-        viewModel.scanAndImportInstalledApps(context)
-    }
-
     val onSetDefaultLauncher = {
         try {
             val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS)
@@ -189,6 +184,7 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
                     onToggleFavorite = { viewModel.toggleFavorite(it) },
                     onSwitchToComplicated = { viewModel.isMinimalMode.value = false },
                     onOpenAddDialog = { viewModel.showAddDialog.value = true },
+                    onScanAndImport = { viewModel.scanAndImportInstalledApps(context) },
                     totalAppsCount = allAppsRaw.size,
                     currentIndex = selectedAppIndex,
                     isDefaultLauncher = isDefaultLauncher,
@@ -208,6 +204,7 @@ fun TvLauncherScreen(viewModel: TvAppViewModel) {
                     onToggleFavorite = { viewModel.toggleFavorite(it) },
                     onSwitchToMinimal = { viewModel.isMinimalMode.value = true },
                     onOpenAddDialog = { viewModel.showAddDialog.value = true },
+                    onScanAndImport = { viewModel.scanAndImportInstalledApps(context) },
                     onDeleteApp = { viewModel.deleteApp(it) },
                     isDefaultLauncher = isDefaultLauncher,
                     onSetDefaultLauncher = onSetDefaultLauncher
@@ -270,38 +267,12 @@ fun MinimalistTextualView(
     onToggleFavorite: (TvApp) -> Unit,
     onSwitchToComplicated: () -> Unit,
     onOpenAddDialog: () -> Unit,
+    onScanAndImport: () -> Unit,
     totalAppsCount: Int,
     currentIndex: Int,
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit
 ) {
-    if (app == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "No apps in dashboard",
-                    color = Color(0xFF938F99),
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.SansSerif
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onOpenAddDialog,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFD0BCFF),
-                        contentColor = Color(0xFF381E72)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Service")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add App Shortcut", color = Color(0xFF381E72), fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-        return
-    }
-
     val themeAccentColor = Color(0xFFD0BCFF)
 
     Column(
@@ -405,243 +376,311 @@ fun MinimalistTextualView(
             }
         }
 
-        // CENTER STAGE: SINGLE GIANT APP TEXT CARD
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left Swipe Indicator using crisp design typography
-            IconButton(
-                onClick = onPrev,
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFF2B2930), CircleShape)
-                    .clip(CircleShape)
-                    .border(1.dp, Color(0xFF49454F), CircleShape)
-            ) {
-                Text("<", color = Color(0xFFE6E1E5), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Main typography Focus Block
-            Column(
+        if (app == null) {
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                // Category/Focus Tag with explicit tracked uppercase layout
-                Text(
-                    text = "CURRENTLY ACTIVE",
-                    color = Color(0xFFD0BCFF),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-
-                // Giant Title with light weights and elegant details matching the design guide
-                Text(
-                    text = app.name.uppercase(),
-                    color = Color(0xFFE6E1E5),
-                    fontSize = 48.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = (-1.5).sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                // Divider line explicitly matching HTML border specification: w-12 h-1 bg-[#49454F]
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .width(48.dp)
-                        .height(1.dp)
-                        .background(Color(0xFF49454F))
-                )
-
-                // Inline Stars/Rating & Clicks Counter
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFD0BCFF),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${app.rating}",
+                        text = "Dashboard is clean to start",
                         color = Color(0xFFE6E1E5),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Light,
+                        fontFamily = FontFamily.SansSerif
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "•",
-                        color = Color(0xFF49454F),
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Launches",
-                        tint = Color(0xFF938F99),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Launched ${app.clicks} times",
+                        text = "No apps or bookmarks are preset. Launch a quick hardware scan or add custom shortcuts below.",
                         color = Color(0xFF938F99),
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Light
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = onOpenAddDialog,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD0BCFF),
+                                contentColor = Color(0xFF381E72)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Service")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add Service Shortcut", color = Color(0xFF381E72), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = onScanAndImport,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2B2930),
+                                contentColor = Color(0xFFE6E1E5)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFF49454F)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Scan & Import")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Scan Local Apps", color = Color(0xFFE6E1E5), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                    }
                 }
-
-                // Subtitle/Brief Description in thin italic representation
-                Text(
-                    text = app.description,
-                    color = Color(0xFF938F99),
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp,
-                    modifier = Modifier
-                        .fillMaxWidth(0.95f)
-                        .padding(top = 8.dp)
-                )
             }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Right Swipe Indicator using crisp design typography
-            IconButton(
-                onClick = onNext,
+            // Bottom balanced spacer for aesthetic symmetry
+            Spacer(modifier = Modifier.height(56.dp))
+        } else {
+            // CENTER STAGE: SINGLE GIANT APP TEXT CARD
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFF2B2930), CircleShape)
-                    .clip(CircleShape)
-                    .border(1.dp, Color(0xFF49454F), CircleShape)
-            ) {
-                Text(">", color = Color(0xFFE6E1E5), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        // BOTTOM INTEGRATED PILL ACTIONS AND CONTROLS
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 24.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                // Large Open Application Button with elegant primary dark layout specifications
-                Button(
-                    onClick = { onLaunch(app) },
-                    modifier = Modifier
-                        .height(56.dp)
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
-                        .testTag("launch_hero_app_button"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFD0BCFF),
-                        contentColor = Color(0xFF381E72)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Launch Action",
-                        modifier = Modifier.size(20.dp),
-                        tint = Color(0xFF381E72)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Open Application",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-0.1).sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Star Button representation using core Star icon color shift
-                OutlinedIconButton(
-                    onClick = { onToggleFavorite(app) },
-                    modifier = Modifier
-                        .size(56.dp)
-                        .testTag("toggle_favorite_button"),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                    colors = IconButtonDefaults.outlinedIconButtonColors(
-                        containerColor = Color(0xFF2B2930),
-                        contentColor = if (app.isFavorite) Color(0xFFD0BCFF) else Color(0xFF938F99)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Toggle Favorite",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Plus option shortcut button
-                OutlinedIconButton(
-                    onClick = onOpenAddDialog,
-                    modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0xFF49454F)),
-                    colors = IconButtonDefaults.outlinedIconButtonColors(
-                        containerColor = Color(0xFF2B2930),
-                        contentColor = Color(0xFFE6E1E5)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Service Shortcut",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            // Carousel Dots representation using elegant violet/gray accents
-            Row(
+                    .fillMaxWidth()
+                    .weight(1f),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                for (i in 0 until totalAppsCount) {
-                    val isActive = i == currentIndex
+                // Left Swipe Indicator using crisp design typography
+                IconButton(
+                    onClick = onPrev,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFF2B2930), CircleShape)
+                        .clip(CircleShape)
+                        .border(1.dp, Color(0xFF49454F), CircleShape)
+                ) {
+                    Text("<", color = Color(0xFFE6E1E5), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Main typography Focus Block
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Category/Focus Tag with explicit tracked uppercase layout
+                    Text(
+                        text = "CURRENTLY ACTIVE",
+                        color = Color(0xFFD0BCFF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 2.sp,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    // Giant Title with light weights and elegant details matching the design guide
+                    Text(
+                        text = app.name.uppercase(),
+                        color = Color(0xFFE6E1E5),
+                        fontSize = 48.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = (-1.5).sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+
+                    // Divider line explicitly matching HTML border specification: w-12 h-1 bg-[#49454F]
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(if (isActive) 10.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isActive) Color(0xFFD0BCFF) else Color(0xFF49454F)
-                            )
+                            .padding(vertical = 12.dp)
+                            .width(48.dp)
+                            .height(1.dp)
+                            .background(Color(0xFF49454F))
                     )
+
+                    // Inline Stars/Rating & Clicks Counter
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFD0BCFF),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${app.rating}",
+                            color = Color(0xFFE6E1E5),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "•",
+                            color = Color(0xFF49454F),
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Launches",
+                            tint = Color(0xFF938F99),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Launched ${app.clicks} times",
+                            color = Color(0xFF938F99),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Light
+                        )
+                    }
+
+                    // Subtitle/Brief Description in thin italic representation
+                    Text(
+                        text = app.description,
+                        color = Color(0xFF938F99),
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp,
+                        modifier = Modifier
+                            .fillMaxWidth(0.95f)
+                            .padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Right Swipe Indicator using crisp design typography
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFF2B2930), CircleShape)
+                        .clip(CircleShape)
+                        .border(1.dp, Color(0xFF49454F), CircleShape)
+                ) {
+                    Text(">", color = Color(0xFFE6E1E5), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            // BOTTOM INTEGRATED PILL ACTIONS AND CONTROLS
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 24.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    // Large Open Application Button with elegant primary dark layout specifications
+                    Button(
+                        onClick = { onLaunch(app) },
+                        modifier = Modifier
+                            .height(56.dp)
+                            .weight(1f)
+                            .padding(horizontal = 4.dp)
+                            .testTag("launch_hero_app_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD0BCFF),
+                            contentColor = Color(0xFF381E72)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Launch Action",
+                            modifier = Modifier.size(20.dp),
+                            tint = Color(0xFF381E72)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Open Application",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-0.1).sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Star Button representation using core Star icon color shift
+                    OutlinedIconButton(
+                        onClick = { onToggleFavorite(app) },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .testTag("toggle_favorite_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            containerColor = Color(0xFF2B2930),
+                            contentColor = if (app.isFavorite) Color(0xFFD0BCFF) else Color(0xFF938F99)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Toggle Favorite",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Plus option shortcut button
+                    OutlinedIconButton(
+                        onClick = onOpenAddDialog,
+                        modifier = Modifier.size(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color(0xFF49454F)),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            containerColor = Color(0xFF2B2930),
+                            contentColor = Color(0xFFE6E1E5)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Service Shortcut",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Carousel Dots representation using elegant violet/gray accents
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (i in 0 until totalAppsCount) {
+                        val isActive = i == currentIndex
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(if (isActive) 10.dp else 6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isActive) Color(0xFFD0BCFF) else Color(0xFF49454F)
+                                )
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+// ============================================
+// VIEW 2: COMPLICATED CINEMATIC CATALOG VIEW
 // ============================================
 // VIEW 2: COMPLICATED CINEMATIC CATALOG VIEW
 // ============================================
@@ -658,10 +697,132 @@ fun ComplicatedCatalogView(
     onToggleFavorite: (TvApp) -> Unit,
     onSwitchToMinimal: () -> Unit,
     onOpenAddDialog: () -> Unit,
+    onScanAndImport: () -> Unit,
     onDeleteApp: (TvApp) -> Unit,
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit
 ) {
+    if (allApps.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Header Row so user can still switch back to minimal view or set default home
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 48.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "HUB DASHBOARD",
+                    fontSize = 11.sp,
+                    color = Color(0xFFD0BCFF),
+                    letterSpacing = 2.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                TextButton(
+                    onClick = onSwitchToMinimal,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp))
+                        .testTag("switch_to_minimal_view"),
+                    colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Minimal Mode",
+                        tint = Color(0xFFE6E1E5),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("To Simplistic View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Main Illustration Icon
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF2B2930))
+                    .border(1.dp, Color(0xFF49454F), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Empty hub",
+                    tint = Color(0xFFD0BCFF),
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Clean Slate Dashboard",
+                color = Color(0xFFE6E1E5),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Light,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "This application launcher starts 100% clean with no background trackers, ads or unwanted software. Get started by adding a custom shortcut or scanning your device.",
+                color = Color(0xFF938F99),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 32.dp)
+                    .fillMaxWidth(0.85f)
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onOpenAddDialog,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD0BCFF),
+                        contentColor = Color(0xFF381E72)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Service")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Custom Service", fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = onScanAndImport,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2B2930),
+                        contentColor = Color(0xFFE6E1E5)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF49454F)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Scan Packages")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Scan System Apps", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        return
+    }
+
     val scrollState = rememberScrollState()
     
     // Top featured active spotlight banner (The "Hero" item)
@@ -702,6 +863,29 @@ fun ComplicatedCatalogView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Scan and Import installed system apps manually
+                TextButton(
+                    onClick = onScanAndImport,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF49454F), RoundedCornerShape(12.dp)),
+                    colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF2B2930))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Scan & Import system application packages",
+                        tint = Color(0xFFD0BCFF),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Scan Packages",
+                        color = Color(0xFFE6E1E5),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
                 // Set Default Launcher setting launcher shortcut
                 TextButton(
                     onClick = onSetDefaultLauncher,
@@ -731,7 +915,7 @@ fun ComplicatedCatalogView(
                     )
                 }
 
-                // Switch back to text focus view with Elegant Dark formatting
+                // Switch back to text view
                 TextButton(
                     onClick = onSwitchToMinimal,
                     modifier = Modifier
@@ -747,7 +931,7 @@ fun ComplicatedCatalogView(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Minimal Textual View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    Text("To Simplistic View", color = Color(0xFFE6E1E5), fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
